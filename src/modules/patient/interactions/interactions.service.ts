@@ -84,7 +84,7 @@ export const getInteractionsWithMyActiveMeds = async (
     myActiveMeds.map(async (m) => {
       const d = await prisma.drug.findFirst({
         where: {
-          name: { contains: m.name, mode: "insensitive" },
+          name: { contains: m.name},
         },
         select: { id: true, name: true, strength: true },
       });

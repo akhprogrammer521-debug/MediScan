@@ -83,8 +83,8 @@ export class OcrService {
       const drug = await prisma.drug.findFirst({
         where: {
           OR: [
-            { name: { contains: term, mode: "insensitive" } },
-            { composition: { contains: term, mode: "insensitive" } },
+            { name: { contains: term } },
+            { composition: { contains: term } },
           ],
         },
       });

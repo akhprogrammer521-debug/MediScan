@@ -8,7 +8,7 @@ export const compareDrugsByName = async (
     where: {
       name: {
         contains: drugAName,
-        mode: "insensitive",
+        
       },
     },
   });
@@ -17,7 +17,7 @@ export const compareDrugsByName = async (
     where: {
       name: {
         contains: drugBName,
-        mode: "insensitive",
+        
       },
     },
   });
