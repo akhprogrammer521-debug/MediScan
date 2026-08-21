@@ -7,8 +7,8 @@ export const getAllPatients = async (search?: string) => {
     where: search
       ? {
           OR: [
-            { user: { username: { contains: search, mode: "insensitive" } } },
-            { user: { email: { contains: search, mode: "insensitive" } } },
+            { user: { username: { contains: search } } },
+            { user: { email: { contains: search } } },
           ],
         }
       : undefined,

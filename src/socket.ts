@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
 import type { Server as HttpServer } from "http";
-import { verifyToken } from "../../mediScan-backend/src/common/utils/jwt";
+import { verifyToken } from "./common/utils/jwt";
 
 export type SocketUser = {
   userId: number;
