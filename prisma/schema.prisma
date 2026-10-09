@@ -7,11 +7,312 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/**
- * =======================
- * ENUMS
- * =======================
- */
+model User {
+  id             Int             @id @default(autoincrement())
+  username       String          @unique(map: "User_username_key")
+  email          String          @unique(map: "User_email_key")
+  password       String
+  role           Role
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  admin          Admin?
+  aiChatMessages AIChatMessage[]
+  notifications  Notification[]
+  patient        Patient?
+  pharmacist     Pharmacist?
+  settings       SystemSetting[]
+
+  @@map("user")
+}
+
+model Admin {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique(map: "Admin_userId_key")
+  user   User @relation(fields: [userId], references: [id], map: "Admin_userId_fkey")
+
+  @@map("admin")
+}
+
+model Patient {
+  id          Int                 @id @default(autoincrement())
+  userId      Int                 @unique(map: "Patient_userId_key")
+  firstName   String
+  lastName    String
+  phone       String
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  medicalInfo MedicalInfo?
+  doseLogs    MedicationDoseLog[]
+  orders      Order[]
+  user        User                @relation(fields: [userId], references: [id], map: "Patient_userId_fkey")
+  medications PatientMedication[]
+
+  @@map("patient")
+}
+
+model MedicalInfo {
+  id                 Int      @id @default(autoincrement())
+  patientId          Int      @unique(map: "MedicalInfo_patientId_key")
+  gender             Gender
+  birthDate          DateTime
+  height             Float
+  weight             Float
+  currentMedications String?
+  chronicMedications String?
+  chronicDiseases    String?
+  allergies          String?
+  patient            Patient  @relation(fields: [patientId], references: [id], map: "MedicalInfo_patientId_fkey")
+
+  @@map("medicalinfo")
+}
+
+model PatientMedication {
+  id        Int                  @id @default(autoincrement())
+  patientId Int
+  name      String
+  dosage    String
+  reason    String?
+  notes     String?
+  status    MedicationStatus     @default(ACTIVE)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  logs      MedicationLog[]
+  schedules MedicationSchedule[]
+  patient   Patient              @relation(fields: [patientId], references: [id], map: "PatientMedication_patientId_fkey")
+
+  @@index([patientId], map: "PatientMedication_patientId_fkey")
+  @@map("patientmedication")
+}
+
+model MedicationLog {
+  id                  Int                @id @default(autoincrement())
+  patientMedicationId Int
+  scheduleId          Int
+  takenAt             DateTime           @default(now())
+  date                DateTime
+  patientMedication   PatientMedication  @relation(fields: [patientMedicationId], references: [id], map: "MedicationLog_patientMedicationId_fkey")
+  schedule            MedicationSchedule @relation(fields: [scheduleId], references: [id], map: "MedicationLog_scheduleId_fkey")
+
+  @@unique([scheduleId, date], map: "MedicationLog_scheduleId_date_key")
+  @@index([patientMedicationId], map: "MedicationLog_patientMedicationId_fkey")
+  @@map("medicationlog")
+}
+
+model MedicationDoseLog {
+  id         Int                @id @default(autoincrement())
+  scheduleId Int
+  patientId  Int
+  date       DateTime
+  taken      Boolean            @default(false)
+  takenAt    DateTime?
+  patient    Patient            @relation(fields: [patientId], references: [id], map: "MedicationDoseLog_patientId_fkey")
+  schedule   MedicationSchedule @relation(fields: [scheduleId], references: [id], map: "MedicationDoseLog_scheduleId_fkey")
+
+  @@unique([scheduleId, date], map: "MedicationDoseLog_scheduleId_date_key")
+  @@index([patientId], map: "MedicationDoseLog_patientId_fkey")
+  @@map("medicationdoselog")
+}
+
+model MedicationSchedule {
+  id                  Int                 @id @default(autoincrement())
+  patientMedicationId Int
+  time                String
+  taken               Boolean             @default(false)
+  updatedAt           DateTime            @updatedAt
+  days                String
+  doseLogs            MedicationDoseLog[]
+  logs                MedicationLog[]
+  patientMedication   PatientMedication   @relation(fields: [patientMedicationId], references: [id], onDelete: Cascade, map: "MedicationSchedule_patientMedicationId_fkey")
+
+  @@index([patientMedicationId], map: "MedicationSchedule_patientMedicationId_fkey")
+  @@map("medicationschedule")
+}
+
+model Pharmacist {
+  id       Int       @id @default(autoincrement())
+  userId   Int       @unique(map: "Pharmacist_userId_key")
+  orders   Order[]
+  user     User      @relation(fields: [userId], references: [id], map: "Pharmacist_userId_fkey")
+  pharmacy Pharmacy?
+
+  @@map("pharmacist")
+}
+
+model Pharmacy {
+  id               Int                  @id @default(autoincrement())
+  name             String
+  address          String
+  latitude         Float?
+  longitude        Float?
+  phone            String
+  licenseNumber    String
+  licenseIssuedAt  DateTime
+  licenseExpiresAt DateTime
+  pharmacistId     Int                  @unique(map: "Pharmacy_pharmacistId_key")
+  isActive         Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  customDrugs      CustomPharmacyDrug[]
+  orders           Order[]
+  pharmacist       Pharmacist           @relation(fields: [pharmacistId], references: [id], map: "Pharmacy_pharmacistId_fkey")
+  stocks           PharmacyStock[]
+  settings         SystemSetting[]
+
+  @@map("pharmacy")
+}
+
+model Drug {
+  id                Int               @id @default(autoincrement())
+  name              String
+  strength          String?
+  description       String?
+  composition       String?
+  indications       String?
+  contraindications String?
+  dosage            String?
+  warnings          String?
+  sideEffects       String?
+  interactions      String?
+  overdose          String?
+  createdAt         DateTime          @default(now())
+  interactionsA     DrugInteraction[] @relation("DrugA")
+  interactionsB     DrugInteraction[] @relation("DrugB")
+  pharmacyStocks    PharmacyStock[]
+
+  @@map("drug")
+}
+
+model CustomPharmacyDrug {
+  id         Int             @id @default(autoincrement())
+  pharmacyId Int
+  name       String
+  strength   String?
+  price      Float
+  notes      String?
+  pharmacy   Pharmacy        @relation(fields: [pharmacyId], references: [id], map: "CustomPharmacyDrug_pharmacyId_fkey")
+  stock      PharmacyStock[]
+
+  @@index([pharmacyId], map: "CustomPharmacyDrug_pharmacyId_idx")
+  @@map("custompharmacydrug")
+}
+
+model PharmacyStock {
+  id           Int                 @id @default(autoincrement())
+  pharmacyId   Int
+  drugId       Int?
+  customDrugId Int?
+  quantity     Int
+  price        Float               @default(0)
+  customDrug   CustomPharmacyDrug? @relation(fields: [customDrugId], references: [id], map: "PharmacyStock_customDrugId_fkey")
+  drug         Drug?               @relation(fields: [drugId], references: [id], map: "PharmacyStock_drugId_fkey")
+  pharmacy     Pharmacy            @relation(fields: [pharmacyId], references: [id], map: "PharmacyStock_pharmacyId_fkey")
+
+  @@index([customDrugId], map: "PharmacyStock_customDrugId_fkey")
+  @@index([drugId], map: "PharmacyStock_drugId_fkey")
+  @@index([pharmacyId], map: "PharmacyStock_pharmacyId_fkey")
+  @@map("pharmacystock")
+}
+
+model DrugInteraction {
+  id       Int    @id @default(autoincrement())
+  drugAId  Int
+  drugBId  Int
+  severity String
+  warning  String
+  drugA    Drug   @relation("DrugA", fields: [drugAId], references: [id], map: "DrugInteraction_drugAId_fkey")
+  drugB    Drug   @relation("DrugB", fields: [drugBId], references: [id], map: "DrugInteraction_drugBId_fkey")
+
+  @@unique([drugAId, drugBId], map: "DrugInteraction_drugAId_drugBId_key")
+  @@index([drugBId], map: "DrugInteraction_drugBId_fkey")
+  @@map("druginteraction")
+}
+
+model Order {
+  id                Int         @id @default(autoincrement())
+  patientId         Int
+  pharmacyId        Int
+  pharmacistId      Int?
+  drugName          String
+  quantity          Int
+  prescriptionImage String?
+  status            OrderStatus @default(PENDING)
+  createdAt         DateTime    @default(now())
+  patient           Patient     @relation(fields: [patientId], references: [id], map: "Order_patientId_fkey")
+  pharmacist        Pharmacist? @relation(fields: [pharmacistId], references: [id], map: "Order_pharmacistId_fkey")
+  pharmacy          Pharmacy    @relation(fields: [pharmacyId], references: [id], map: "Order_pharmacyId_fkey")
+
+  @@index([patientId], map: "Order_patientId_fkey")
+  @@index([pharmacistId], map: "Order_pharmacistId_fkey")
+  @@index([pharmacyId], map: "Order_pharmacyId_fkey")
+  @@map("order")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int?
+  toRole    Role?
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User?            @relation(fields: [userId], references: [id], map: "Notification_userId_fkey")
+
+  @@index([userId], map: "Notification_userId_fkey")
+  @@map("notification")
+}
+
+model SystemSetting {
+  id         Int          @id @default(autoincrement())
+  key        String
+  value      String
+  role       Role
+  scope      SettingScope @default(GLOBAL)
+  userId     Int?
+  pharmacyId Int?
+  pharmacy   Pharmacy?    @relation(fields: [pharmacyId], references: [id], map: "SystemSetting_pharmacyId_fkey")
+  user       User?        @relation(fields: [userId], references: [id], map: "SystemSetting_userId_fkey")
+
+  @@unique([scope, role, key], map: "SystemSetting_scope_role_key_key")
+  @@unique([scope, role, key, pharmacyId], map: "SystemSetting_scope_role_key_pharmacyId_key")
+  @@unique([scope, role, key, userId], map: "SystemSetting_scope_role_key_userId_key")
+  @@index([pharmacyId], map: "SystemSetting_pharmacyId_fkey")
+  @@index([userId], map: "SystemSetting_userId_fkey")
+  @@map("systemsetting")
+}
+
+model OCRScan {
+  id        Int      @id @default(autoincrement())
+  imageUrl  String
+  text      String
+  language  String
+  createdAt DateTime @default(now())
+
+  @@map("ocrscan")
+}
+
+model Prescription {
+  id                Int      @id @default(autoincrement())
+  imageUrl          String
+  content           String
+  translatedContent String?
+  createdAt         DateTime @default(now())
+
+  @@map("prescription")
+}
+
+model AIChatMessage {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], map: "AIChatMessage_userId_fkey")
+
+  @@index([userId], map: "AIChatMessage_userId_fkey")
+  @@map("aichatmessage")
+}
 
 enum Role {
   ADMIN
@@ -44,421 +345,8 @@ enum NotificationType {
   MESSAGE
 }
 
-enum SystemType {
-  ADMIN
-  PHARMACY
-  PATIENT
-}
-
 enum SettingScope {
   GLOBAL
   USER
   PHARMACY
-}
-
-/**
- * =======================
- * USER & AUTH
- * =======================
- */
-
-model User {
-  id       Int     @id @default(autoincrement())
-  username String  @unique
-  email    String  @unique
-  password String
-  role     Role
-  isActive Boolean @default(true)
-
-  admin      Admin?
-  patient    Patient?
-  pharmacist Pharmacist?
-
-  notifications Notification[]
-
-  settings SystemSetting[]
-
-  aiChatMessages AIChatMessage[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("user")
-}
-
-/**
- * =======================
- * ADMIN
- * =======================
- */
-
-model Admin {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id])
-
-  @@map("admin")
-}
-
-/**
- * =======================
- * PATIENT
- * =======================
- */
-
-model Patient {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id])
-
-  firstName String
-  lastName  String
-  phone     String
-
-  medicalInfo MedicalInfo?
-  medications PatientMedication[]
-  orders      Order[]
-
-  doseLogs MedicationDoseLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("patient")
-}
-
-model MedicalInfo {
-  id        Int     @id @default(autoincrement())
-  patientId Int     @unique
-  patient   Patient @relation(fields: [patientId], references: [id])
-
-  gender    Gender
-  birthDate DateTime
-  height    Float
-  weight    Float
-
-  currentMedications String?
-  chronicMedications String?
-  chronicDiseases    String?
-  allergies          String?
-
-  @@map("medicalinfo")
-}
-
-/**
- * =======================
- * PATIENT ELECTRONIC PHARMACY
- * =======================
- */
-
-model PatientMedication {
-  id        Int     @id @default(autoincrement())
-  patientId Int
-  patient   Patient @relation(fields: [patientId], references: [id])
-
-  name   String
-  dosage String
-  reason String?
-  notes  String?
-
-  status MedicationStatus @default(ACTIVE)
-
-  schedules MedicationSchedule[]
-  logs      MedicationLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("patientmedication")
-}
-
-model MedicationLog {
-  id Int @id @default(autoincrement())
-
-  patientMedicationId Int
-  scheduleId          Int
-
-  takenAt DateTime @default(now())
-  date    DateTime
-
-  patientMedication PatientMedication  @relation(fields: [patientMedicationId], references: [id])
-  schedule          MedicationSchedule @relation(fields: [scheduleId], references: [id])
-
-  @@unique([scheduleId, date])
-  @@map("medicationlog")
-}
-
-model MedicationDoseLog {
-  id         Int       @id @default(autoincrement())
-  scheduleId Int
-  patientId  Int
-  date       DateTime
-  taken      Boolean   @default(false)
-  takenAt    DateTime?
-
-  schedule MedicationSchedule @relation(fields: [scheduleId], references: [id])
-  patient  Patient            @relation(fields: [patientId], references: [id])
-
-  @@unique([scheduleId, date])
-  @@map("medicationdoselog")
-}
-
-model MedicationSchedule {
-  id                  Int               @id @default(autoincrement())
-  patientMedicationId Int
-  patientMedication   PatientMedication @relation(fields: [patientMedicationId], references: [id], onDelete: Cascade)
-  logs                MedicationLog[]
-
-  time      String
-  days      String
-  taken     Boolean  @default(false)
-  updatedAt DateTime @updatedAt
-
-  doseLogs MedicationDoseLog[]
-
-  @@map("medicationschedule")
-}
-
-/**
- * =======================
- * PHARMACIST & PHARMACY
- * =======================
- */
-
-model Pharmacist {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id])
-
-  pharmacy Pharmacy?
-  orders   Order[]
-
-  @@map("pharmacist")
-}
-
-model Pharmacy {
-  id        Int    @id @default(autoincrement())
-  name      String
-  address   String
-  latitude  Float?
-  longitude Float?
-  phone     String
-
-  licenseNumber    String
-  licenseIssuedAt  DateTime
-  licenseExpiresAt DateTime
-
-  settings SystemSetting[]
-
-  pharmacistId Int        @unique
-  pharmacist   Pharmacist @relation(fields: [pharmacistId], references: [id])
-
-  stocks      PharmacyStock[]
-  orders      Order[]
-  customDrugs CustomPharmacyDrug[]
-
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("pharmacy")
-}
-
-/**
- * =======================
- * DRUGS (GLOBAL & STOCK)
- * =======================
- */
-
-model Drug {
-  id          Int @id @default(autoincrement())
-
-  name        String
-  strength    String?
-  description String?
-
-  composition       String?
-  indications       String?
-  contraindications String?
-  dosage            String?
-  warnings          String?
-  sideEffects       String?
-  interactions      String?
-  overdose          String?
-
-  pharmacyStocks PharmacyStock[]
-
-  interactionsA DrugInteraction[] @relation("DrugA")
-  interactionsB DrugInteraction[] @relation("DrugB")
-
-  createdAt DateTime @default(now())
-
-  @@map("drug")
-}
-
-model CustomPharmacyDrug {
-  id         Int @id @default(autoincrement())
-  pharmacyId Int
-
-  name     String
-  strength String?
-  price    Float
-  notes    String?
-
-  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
-  stock    PharmacyStock[]
-
-  @@map("custompharmacydrug")
-}
-
-model PharmacyStock {
-  id         Int @id @default(autoincrement())
-  pharmacyId Int
-
-  drugId       Int?
-  customDrugId Int?
-
-  quantity Int
-  price    Float @default(0)
-
-  pharmacy   Pharmacy            @relation(fields: [pharmacyId], references: [id])
-  drug       Drug?               @relation(fields: [drugId], references: [id])
-  customDrug CustomPharmacyDrug? @relation(fields: [customDrugId], references: [id])
-
-  @@map("pharmacystock")
-}
-
-/**
- * =======================
- * DRUG INTERACTIONS
- * =======================
- */
-
-model DrugInteraction {
-  id      Int @id @default(autoincrement())
-  drugAId Int
-  drugBId Int
-
-  severity String
-  warning  String
-
-  drugA Drug @relation("DrugA", fields: [drugAId], references: [id])
-  drugB Drug @relation("DrugB", fields: [drugBId], references: [id])
-
-  @@unique([drugAId, drugBId])
-  @@map("druginteraction")
-}
-
-/**
- * =======================
- * ORDERS
- * =======================
- */
-
-model Order {
-  id           Int @id @default(autoincrement())
-  patientId    Int
-  pharmacyId   Int
-  pharmacistId Int?
-
-  drugName String
-  quantity Int
-
-  prescriptionImage String?
-
-  status OrderStatus @default(PENDING)
-
-  patient    Patient     @relation(fields: [patientId], references: [id])
-  pharmacy   Pharmacy    @relation(fields: [pharmacyId], references: [id])
-  pharmacist Pharmacist? @relation(fields: [pharmacistId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@map("order")
-}
-
-/**
- * =======================
- * NOTIFICATIONS
- * =======================
- */
-
-model Notification {
-  id Int @id @default(autoincrement())
-
-  userId Int?
-  toRole Role?
-
-  type    NotificationType
-  title   String
-  message String
-
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id])
-
-  @@map("notification")
-}
-
-model SystemSetting {
-  id    Int    @id @default(autoincrement())
-  key   String
-  value String
-
-  role  Role
-  scope SettingScope @default(GLOBAL)
-
-  userId     Int?
-  pharmacyId Int?
-
-  user     User?     @relation(fields: [userId], references: [id])
-  pharmacy Pharmacy? @relation(fields: [pharmacyId], references: [id])
-
-  @@unique([scope, role, key], name: "scope_role_key")
-  @@unique([scope, role, key, userId], name: "scope_role_key_userId")
-  @@unique([scope, role, key, pharmacyId], name: "scope_role_key_pharmacyId")
-
-  @@map("systemsetting")
-}
-
-/**
- * =======================
- * OCR & PRESCRIPTIONS
- * =======================
- */
-
-model OCRScan {
-  id       Int    @id @default(autoincrement())
-  imageUrl String
-  text     String
-  language String
-
-  createdAt DateTime @default(now())
-
-  @@map("ocrscan")
-}
-
-model Prescription {
-  id                Int     @id @default(autoincrement())
-  imageUrl          String
-  content           String
-  translatedContent String?
-
-  createdAt DateTime @default(now())
-
-  @@map("prescription")
-}
-
-model AIChatMessage {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  role      String
-  content   String
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("aichatmessage")
 }
