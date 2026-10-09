@@ -12,7 +12,7 @@ app.use(
             "http://localhost:3000",
             "http://localhost:3001",
             "https://medi-scan-patient-system-nu.vercel.app",
-            // ضعي هنا رابط Vercel الخاص بمشروع Pharmacy أيضًا
+            "https://medi-scan-admin-system.vercel.app",
         ],
         credentials: true,
     })
