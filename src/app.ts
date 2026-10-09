@@ -13,6 +13,7 @@ app.use(
             "http://localhost:3001",
             "https://medi-scan-patient-system-nu.vercel.app",
             "https://medi-scan-admin-system.vercel.app",
+             "https://medi-scan-pharmacy-system-94wh.vercel.app",
         ],
         credentials: true,
     })
